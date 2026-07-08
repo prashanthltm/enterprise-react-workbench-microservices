@@ -1,0 +1,70 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: workbench-postgres
+    environment:
+      POSTGRES_USER: workbench
+      POSTGRES_PASSWORD: Workbench@123
+      POSTGRES_DB: workbenchdb
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+
+  identity-service:
+    build: ../services/IdentityService
+    environment:
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__Postgres: Host=postgres;Port=5432;Database=workbenchdb;Username=workbench;Password=Workbench@123
+      Jwt__Issuer: EnterpriseWorkbench
+      Jwt__Audience: EnterpriseWorkbenchClient
+      Jwt__Key: local-development-super-secret-key-change-this
+    ports:
+      - "5001:8080"
+    depends_on:
+      - postgres
+
+  user-service:
+    build: ../services/UserService
+    environment:
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__Postgres: Host=postgres;Port=5432;Database=workbenchdb;Username=workbench;Password=Workbench@123
+    ports:
+      - "5002:8080"
+    depends_on:
+      - postgres
+
+  dashboard-service:
+    build: ../services/DashboardService
+    environment:
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__Postgres: Host=postgres;Port=5432;Database=workbenchdb;Username=workbench;Password=Workbench@123
+    ports:
+      - "5003:8080"
+    depends_on:
+      - postgres
+
+  notification-service:
+    build: ../services/NotificationService
+    environment:
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__Postgres: Host=postgres;Port=5432;Database=workbenchdb;Username=workbench;Password=Workbench@123
+    ports:
+      - "5004:8080"
+    depends_on:
+      - postgres
+
+  client:
+    build: ../client
+    environment:
+      VITE_IDENTITY_API_URL: http://localhost:5001/api
+      VITE_USER_API_URL: http://localhost:5002/api
+      VITE_DASHBOARD_API_URL: http://localhost:5003/api
+      VITE_NOTIFICATION_API_URL: http://localhost:5004/api
+    ports:
+      - "5173:5173"
+    depends_on:
+      - identity-service
+      - user-service
+      - dashboard-service
+      - notification-service
